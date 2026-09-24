@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="assets/logo-emblem.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotton Handloom Collection | Sri Laxmi Traders</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Canvas 2D background — no external 3D library needed -->
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-dark: #f8f5ef;
+            --bg-mid: #f1ece2;
+            --glass-bg: rgba(255, 255, 255, 0.82);
+            --glass-border: rgba(28, 26, 23, 0.08);
+            --glass-hover: rgba(255, 255, 255, 0.92);
+            --gold-1: #a8681a;
+            --gold-2: #b5761f;
+            --gold-3: #c9891f;
+            --text-white: #1c1a17;
+            --text-light: #3f3b34;
+            --text-muted: #6b655d;
+            --font-heading: 'Instrument Serif', serif;
+            --font-body: Archivo, system-ui, sans-serif;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-body);
+            background: linear-gradient(180deg, var(--bg-dark) 0%, var(--bg-mid) 50%, var(--bg-dark) 100%);
+            color: var(--text-light);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        #threejs-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            opacity: 1;
+            pointer-events: none;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+        .gold-text {
+            background: linear-gradient(135deg, var(--gold-1), var(--gold-2), var(--gold-3), var(--gold-2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .shimmer-text {
+            background: linear-gradient(90deg, var(--gold-1), var(--gold-3), var(--gold-1), var(--gold-2), var(--gold-3));
+            background-size: 300% 100%;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 4s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+        }
+
+        .glass-btn {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            color: var(--text-white);
+            padding: 14px 32px;
+            font-family: var(--font-body);
+            font-size: 0.95rem; font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+
+        .glass-btn:hover {
+            background: var(--glass-hover);
+            border-color: rgba(166, 124, 46, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(166, 124, 46, 0.08);
+        }
+
+        .glass-btn.gold {
+            background: linear-gradient(135deg, var(--gold-1), var(--gold-2));
+            border: none; color: #0a0a0f; font-weight: 600;
+        }
+
+        .glass-btn.gold:hover {
+            background: linear-gradient(135deg, var(--gold-2), var(--gold-3));
+            box-shadow: 0 8px 32px rgba(166, 124, 46, 0.15);
+        }
+
+        .glass-btn.whatsapp {
+            background: linear-gradient(135deg, #25d366, #128c7e);
+            border: none; color: #fff; font-weight: 600;
+        }
+
+        .glass-btn.whatsapp:hover {
+            background: linear-gradient(135deg, #2be371, #159e8c);
+            box-shadow: 0 8px 32px rgba(37, 211, 102, 0.3);
+        }
+
+        .orb {
+            position: absolute; border-radius: 50%;
+            filter: blur(80px); opacity: 0.4;
+            pointer-events: none; will-change: transform;
+        }
+
+        .orb-gold { background: radial-gradient(circle, rgba(166, 124, 46, 0.3), transparent 70%); }
+        .orb-purple { background: radial-gradient(circle, rgba(180, 140, 220, 0.15), transparent 70%); }
+        .orb-blue { background: radial-gradient(circle, rgba(140, 170, 220, 0.12), transparent 70%); }
+
+        @keyframes float { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-30px) scale(1.05); } }
+        @keyframes float-slow { 0%, 100% { transform: translateY(0px) translateX(0px); } 33% { transform: translateY(-20px) translateX(10px); } 66% { transform: translateY(10px) translateX(-10px); } }
+
+        .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.8s ease, transform 0.8s ease; }
+        .reveal.active { opacity: 1; transform: translate(0, 0); }
+
+        /* ===== NAVIGATION ===== */
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0;
+            z-index: 1000; padding: 16px 0;
+            transition: all 0.3s ease;
+        }
+
+        .navbar.scrolled {
+            background: rgba(250, 247, 242, 0.88);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 12px 0;
+        }
+
+        .navbar .container { display: flex; align-items: center; justify-content: space-between; }
+
+        .nav-logo {
+            font-family: var(--font-heading);
+            font-size: 1.5rem; font-weight: 400;
+            text-decoration: none;
+        }
+
+        .nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
+
+        .nav-links a {
+            color: var(--text-light); text-decoration: none;
+            font-size: 0.9rem; font-weight: 400;
+            position: relative; transition: color 0.3s ease;
+        }
+
+        .nav-links a::after {
+            content: ''; position: absolute; bottom: -4px; left: 0;
+            width: 0; height: 2px;
+            background: linear-gradient(90deg, var(--gold-1), var(--gold-3));
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover { color: var(--text-white); }
+        .nav-links a:hover::after { width: 100%; }
+
+        .nav-cta { padding: 10px 24px !important; font-size: 0.85rem !important; }
+
+        .nav-toggle {
+            display: none; background: none; border: none;
+            color: var(--text-white); font-size: 1.5rem; cursor: pointer;
+        }
+
+        /* Dropdown */
+        .nav-dropdown { position: relative; }
+
+        .nav-dropdown .dropdown-menu {
+            position: absolute; top: 100%; left: -16px;
+            min-width: 200px; padding: 12px 0;
+            background: rgba(250, 247, 242, 0.95);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            opacity: 0; visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            list-style: none;
+            margin-top: 12px;
+            z-index: 100;
+        }
+
+        .nav-dropdown:hover .dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
+
+        .dropdown-menu li a {
+            display: block; padding: 10px 20px;
+            font-size: 0.85rem; color: var(--text-light);
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-menu li a:hover { background: var(--glass-hover); color: var(--gold-2); }
+        .dropdown-menu li a::after { display: none; }
+
+        /* ===== CATEGORY HERO ===== */
+        .category-hero {
+            position: relative; min-height: 40vh;
+            display: flex; align-items: center;
+            overflow: hidden; padding-top: 100px;
+            z-index: 2;
+        }
+
+        .category-hero .orb-1 { width: 400px; height: 400px; top: -80px; right: -80px; animation: float-slow 12s ease-in-out infinite; }
+        .category-hero .orb-2 { width: 300px; height: 300px; bottom: -60px; left: -60px; animation: float-slow 15s ease-in-out infinite 2s; }
+
+        .hero-grid-bg {
+            position: absolute; inset: 0;
+            background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.02) 1px, transparent 0);
+            background-size: 50px 50px; opacity: 0.5;
+        }
+
+        .category-hero-content {
+            position: relative; z-index: 10;
+            padding: 60px 0 80px; width: 100%;
+        }
+
+        .breadcrumb {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.85rem; color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+
+        .breadcrumb a { color: var(--text-muted); text-decoration: none; transition: color 0.3s ease; }
+        .breadcrumb a:hover { color: var(--gold-2); }
+        .breadcrumb i { font-size: 0.7rem; }
+
+        .category-hero h1 {
+            font-family: var(--font-heading);
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 400; margin-bottom: 20px;
+        }
+
+        .category-description {
+            font-size: 1.1rem; color: var(--text-muted);
+            max-width: 700px; line-height: 1.8; margin-bottom: 32px;
+        }
+
+        .category-stats {
+            display: flex; align-items: center; gap: 32px; flex-wrap: wrap;
+        }
+
+        .category-stat {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.9rem; color: var(--text-light);
+        }
+
+        .category-stat i { color: var(--gold-2); }
+
+        /* ===== PRODUCT GRID ===== */
+        .products-section {
+            position: relative; z-index: 2;
+            padding: 80px 0 120px;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 28px;
+        }
+
+        .product-card {
+            padding: 0; overflow: hidden;
+            transition: all 0.4s ease;
+            position: relative;
+        }
+
+        .product-card::before {
+            content: ''; position: absolute; inset: 0;
+            border-radius: 16px; padding: 1px;
+            background: linear-gradient(135deg, rgba(166, 124, 46, 0.15), transparent 50%, rgba(200, 150, 62, 0.1));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude;
+            opacity: 0; transition: opacity 0.4s ease;
+        }
+
+        .product-card:hover {
+            transform: translateY(-8px);
+            background: var(--glass-hover);
+            box-shadow: 0 20px 60px rgba(168, 104, 26, 0.08), 0 0 30px rgba(166, 124, 46, 0.04);
+        }
+
+        .product-card:hover::before { opacity: 1; }
+
+        .product-card-image {
+            width: 100%; height: 220px;
+            overflow: hidden; border-radius: 16px 16px 0 0;
+        }
+
+        .product-card-image img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .product-card:hover .product-card-image img { transform: scale(1.08); }
+
+        .product-card-placeholder {
+            width: 100%; height: 220px;
+            border-radius: 16px 16px 0 0;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #d4760a, #f5a623);
+            position: relative; overflow: hidden;
+        }
+
+        .product-card-placeholder::before {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at 30% 40%, rgba(0,0,0,0.08), transparent 60%);
+        }
+
+        .product-card-placeholder i { font-size: 3rem; color: rgba(0,0,0,0.08); }
+
+        .product-card-body { padding: 24px; background: transparent; }
+
+        .product-card-body .stock-category {
+            font-size: 0.75rem; color: var(--gold-2);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            font-weight: 500; margin-bottom: 8px; display: block;
+        }
+
+        .product-card-body h3 {
+            font-family: var(--font-heading);
+            font-size: 1.15rem; color: var(--text-white);
+            margin-bottom: 10px;
+        }
+
+        .product-card-body p {
+            color: var(--text-muted); font-size: 0.85rem;
+            line-height: 1.6; margin-bottom: 16px;
+        }
+
+        .product-card-meta {
+            display: flex; align-items: center; gap: 12px;
+            flex-wrap: wrap; margin-bottom: 16px;
+        }
+
+        .product-card-meta span {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.8rem; color: var(--text-muted);
+        }
+
+        .product-card-meta span i { color: var(--gold-2); font-size: 0.7rem; }
+
+        .stock-status {
+            display: inline-block;
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 0.7rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .stock-status.in-stock { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+        .stock-status.limited { background: rgba(241, 196, 15, 0.15); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.3); }
+        .stock-status.on-program { background: rgba(52, 152, 219, 0.15); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.3); }
+        .stock-status.sold-out { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
+
+        .product-card .inquire-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px; border-radius: 50px;
+            background: rgba(37, 211, 102, 0.12);
+            border: 1px solid rgba(37, 211, 102, 0.3);
+            color: #25d366; font-size: 0.82rem; font-weight: 500;
+            text-decoration: none; transition: all 0.3s ease;
+        }
+
+        .product-card .inquire-btn:hover {
+            background: rgba(37, 211, 102, 0.2);
+            border-color: rgba(37, 211, 102, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .products-loading {
+            text-align: center; padding: 80px 20px;
+            color: var(--text-muted); grid-column: 1 / -1;
+        }
+
+        .products-loading i { font-size: 2rem; color: var(--gold-2); margin-bottom: 16px; animation: spin 2s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .products-empty {
+            text-align: center; padding: 80px 20px;
+            color: var(--text-muted); grid-column: 1 / -1;
+        }
+
+        .products-empty i { font-size: 3rem; color: var(--gold-2); opacity: 0.5; margin-bottom: 16px; display: block; }
+
+        /* ===== RELATED CATEGORIES ===== */
+        .related-section {
+            position: relative; z-index: 2;
+            padding: 100px 0;
+            background: linear-gradient(180deg, transparent, rgba(230, 222, 210, 0.3), transparent);
+        }
+
+        .related-section .section-header { text-align: center; margin-bottom: 48px; }
+
+        .related-section .section-header h2 {
+            font-family: var(--font-heading);
+            font-size: clamp(1.8rem, 3vw, 2.5rem);
+            font-weight: 400; letter-spacing: -0.015em; margin-bottom: 12px;
+        }
+
+        .related-section .section-header p { color: var(--text-muted); font-size: 1rem; }
+
+        .related-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px;
+        }
+
+        .related-card {
+            padding: 36px; text-align: center;
+            transition: all 0.3s ease; text-decoration: none;
+            display: block;
+        }
+
+        .related-card:hover { transform: translateY(-6px); background: linear-gradient(145deg, #fdf9f2, #f6efe3); box-shadow: 0 16px 48px rgba(168,104,26,0.08); border-color: rgba(168,104,26,0.2); }
+
+        .related-card-icon {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: linear-gradient(135deg, rgba(166, 124, 46, 0.08), rgba(166, 124, 46, 0.03));
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .related-card-icon i { font-size: 1.4rem; color: var(--gold-2); }
+
+        .related-card h3 {
+            font-family: var(--font-heading);
+            font-size: 1.2rem; color: var(--text-white); margin-bottom: 10px;
+        }
+
+        .related-card p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; margin-bottom: 16px; }
+
+        .related-card .explore-link {
+            color: var(--gold-2); font-size: 0.85rem; font-weight: 500;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: gap 0.3s ease;
+        }
+
+        .related-card:hover .explore-link { gap: 10px; }
+
+        /* ===== CTA SECTION ===== */
+        .cta-section {
+            position: relative; z-index: 2;
+            padding: 100px 0;
+        }
+
+        .cta-box {
+            padding: 60px; text-align: center;
+        }
+
+        .cta-box h2 {
+            font-family: var(--font-heading);
+            font-size: clamp(1.8rem, 3vw, 2.5rem);
+            color: var(--text-white); margin-bottom: 16px;
+        }
+
+        .cta-box p { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
+
+        .cta-buttons { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            position: relative; z-index: 2;
+            background: rgba(250, 247, 242, 0.92);
+            border-top: 1px solid var(--glass-border);
+            padding: 80px 0 32px;
+        }
+
+        .footer-grid {
+            display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px; margin-bottom: 48px;
+        }
+
+        .footer-brand h3 { font-family: var(--font-heading); font-size: 1.4rem; margin-bottom: 16px; }
+        .footer-brand p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.7; margin-bottom: 20px; }
+
+        .footer-social { display: flex; gap: 12px; }
+
+        .footer-social a {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-light); text-decoration: none; transition: all 0.3s ease;
+        }
+
+        .footer-social a:hover { background: rgba(166, 124, 46, 0.08); border-color: rgba(166, 124, 46, 0.2); color: var(--gold-2); }
+
+        .footer-col h4 {
+            font-size: 0.9rem; font-weight: 600; color: var(--text-white);
+            margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .footer-col ul { list-style: none; }
+        .footer-col ul li { margin-bottom: 10px; }
+        .footer-col ul li a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: color 0.3s ease; }
+        .footer-col ul li a:hover { color: var(--gold-2); }
+
+        .footer-bottom {
+            border-top: 1px solid var(--glass-border);
+            padding-top: 32px; display: flex;
+            align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 16px;
+        }
+
+        .footer-bottom p { color: var(--text-muted); font-size: 0.85rem; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .products-grid { grid-template-columns: repeat(2, 1fr); }
+            .related-grid { grid-template-columns: repeat(2, 1fr); }
+            .footer-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none; position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(250, 247, 242, 0.98);
+                backdrop-filter: blur(20px);
+                flex-direction: column; align-items: center; justify-content: center;
+                gap: 32px; z-index: 999;
+            }
+            .nav-links.active { display: flex; }
+            .nav-toggle { display: block; z-index: 1001; }
+            .nav-dropdown .dropdown-menu {
+                position: static; opacity: 1; visibility: visible;
+                transform: none; background: transparent; border: none;
+                backdrop-filter: none; margin-top: 8px;
+            }
+            .products-grid { grid-template-columns: 1fr; }
+            .related-grid { grid-template-columns: 1fr; }
+            .category-stats { gap: 16px; }
+            .footer-grid { grid-template-columns: 1fr; gap: 32px; }
+            .footer-bottom { flex-direction: column; text-align: center; }
+            .cta-box { padding: 40px 24px; }
+        }
+
+        @media (max-width: 480px) {
+            .category-hero h1 { font-size: 2rem; }
+            .cta-buttons { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="threejs-canvas"></canvas>
+
+    <!-- ===== NAVIGATION ===== -->
+    <nav class="navbar scrolled" id="navbar">
+        <div class="container">
+            <a href="index.html" class="nav-logo shimmer-text">Sri Laxmi Traders</a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="index.html">Home</a></li>
+                <li class="nav-dropdown">
+                    <a href="#">Products <i class="fas fa-chevron-down" style="font-size:0.6rem;margin-left:4px;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="cotton-handloom.html">Cotton Handloom</a></li>
+                        <li><a href="cotton-batik.html">Cotton Batik</a></li>
+                        <li><a href="rayon.html">Rayon</a></li>
+                        <li><a href="silk-chandheri.html">Silk Chandheri</a></li>
+                    </ul>
+                </li>
+                <li><a href="collection.html">Collection</a></li>
+                <li><a href="index.html#contact">Contact</a></li>
+                <li><a href="index.html#contact" class="glass-btn nav-cta">Get Quote</a></li>
+            </ul>
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ===== CATEGORY HERO ===== -->
+    <section class="category-hero">
+        <div class="orb orb-gold orb-1"></div>
+        <div class="orb orb-purple orb-2"></div>
+        <div class="hero-grid-bg"></div>
+        <div class="container">
+            <div class="category-hero-content">
+                <div class="breadcrumb">
+                    <a href="index.html">Home</a>
+                    <i class="fas fa-chevron-right"></i>
+                    <a href="#">Products</a>
+                    <i class="fas fa-chevron-right"></i>
+                    <span>Cotton Handloom</span>
+                </div>
+                <h1 class="shimmer-text">Cotton Handloom Collection</h1>
+                <p class="category-description">Authentic handwoven cotton fabrics crafted by skilled artisans of Erode. Each piece carries the legacy of generations of weaving expertise. GI-tagged varieties available.</p>
+                <div class="category-stats">
+                    <div class="category-stat"><i class="fas fa-th-large"></i> 50+ Designs</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== PRODUCT GRID ===== -->
+    <section class="products-section">
+        <div class="container">
+            <div class="products-grid" id="productsGrid">
+                <div class="products-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading products...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== RELATED CATEGORIES ===== -->
+    <section class="related-section">
+        <div class="container">
+            <div class="section-header reveal">
+                <h2 class="gold-text">Explore Other Categories</h2>
+                <p>Discover our complete range of premium wholesale fabrics</p>
+            </div>
+            <div class="related-grid">
+                <a href="cotton-batik.html" class="related-card reveal">
+                    <div class="related-card-icon"><i class="fas fa-palette"></i></div>
+                    <h3>Cotton Batik</h3>
+                    <p>Vibrant batik-printed cotton fabrics with traditional and contemporary designs.</p>
+                    <span class="explore-link">Explore <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="rayon.html" class="related-card reveal">
+                    <div class="related-card-icon"><i class="fas fa-wind"></i></div>
+                    <h3>Rayon Fabrics</h3>
+                    <p>Luxuriously soft rayon with excellent drape and vibrant prints.</p>
+                    <span class="explore-link">Explore <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="silk-chandheri.html" class="related-card reveal">
+                    <div class="related-card-icon"><i class="fas fa-gem"></i></div>
+                    <h3>Silk Chandheri</h3>
+                    <p>Exquisite Chanderi silk with sheer texture and luxurious golden zari work.</p>
+                    <span class="explore-link">Explore <i class="fas fa-arrow-right"></i></span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== CTA SECTION ===== -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-box reveal">
+                <h2>Looking for something specific?</h2>
+                <p>Contact us for custom requirements and bulk pricing</p>
+                <div class="cta-buttons">
+                    <a href="https://wa.me/919364110190?text=Hi, I'm interested in Cotton Handloom fabrics. Please share details." class="glass-btn whatsapp" target="_blank">
+                        <i class="fab fa-whatsapp"></i> WhatsApp Us
+                    </a>
+                    <a href="tel:+919364110190" class="glass-btn">
+                        <i class="fas fa-phone"></i> Call Now
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+<footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                        <img src="assets/logo-emblem.png" alt="Sri Laxmi Traders" style="width:56px;height:56px;border-radius:50%;object-fit:contain;flex-shrink:0;">
+                        <h3 class="shimmer-text">Sri Laxmi Traders</h3>
+                    </div>
+                    <p>Premium textile manufacturers and suppliers from the heart of Erode, Tamil Nadu. Supplying quality fabrics to retailers, manufacturers, and boutiques across India since 1985.</p>
+                    <div class="footer-social">
+                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                        <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>Products</h4>
+                    <ul>
+                        <li><a href="index.html#products">Cotton Handloom</a></li>
+                        <li><a href="index.html#products">Cotton Batik</a></li>
+                        <li><a href="index.html#products">Rayon Fabrics</a></li>
+                        <li><a href="index.html#products">Silk Chandheri</a></li>
+                        <li><a href="collection.html">Full Collection</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Services</h4>
+                    <ul>
+                        <li><a href="index.html#services">Bulk Wholesale</a></li>
+                        <li><a href="index.html#services">Custom Designs</a></li>
+                        <li><a href="index.html#services">Sample Service</a></li>
+                        <li><a href="index.html#services">Pan-India Delivery</a></li>
+                        <li><a href="index.html#services">Credit Facility</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="index.html#about">About Us</a></li>
+                        <li><a href="index.html#testimonials">Testimonials</a></li>
+                        <li><a href="index.html#contact">Contact</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Sri Laxmi Traders. All rights reserved. | Erode, Tamil Nadu, India</p>
+                <p>Crafted with <i class="fas fa-heart" style="color:var(--gold-2);"></i> for India's textile heritage</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ===== WOVEN THREAD BACKGROUND (Canvas 2D) ===== -->
+    <script>
+        (function() {
+            if (window.innerWidth < 768) { var c = document.getElementById('threejs-canvas'); if (c) c.style.display = 'none'; return; }
+            var canvas = document.getElementById('threejs-canvas');
+            var ctx = canvas.getContext('2d');
+            var W, H, dpr;
+            var mouseX = 0.5, mouseY = 0.5, tX = 0.5, tY = 0.5;
+            function resize() {
+                dpr = Math.min(window.devicePixelRatio, 2); W = window.innerWidth; H = window.innerHeight;
+                canvas.width = W * dpr; canvas.height = H * dpr;
+                canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+            resize(); window.addEventListener('resize', resize);
+            document.addEventListener('mousemove', function(e) { tX = e.clientX / W; tY = e.clientY / H; });
+            var THREADS = 12, threads = [], threadHues = ['#c4993d', '#b5861e', '#a07028', '#d4a84a', '#8a6018'];
+            for (var i = 0; i < THREADS; i++) {
+                threads.push({ yBase: (i + 0.5) / THREADS, amp: 40 + Math.random() * 60, freq: 0.0015 + Math.random() * 0.0025,
+                    speed: 0.12 + Math.random() * 0.28, phase: Math.random() * Math.PI * 2,
+                    alpha: 0.09 + Math.random() * 0.09, width: 0.8 + Math.random() * 1.2, hue: threadHues[i % threadHues.length] });
+            }
+            var PARTICLES = 90, particles = [];
+            for (var j = 0; j < PARTICLES; j++) {
+                particles.push({ x: Math.random() * W, y: Math.random() * H, r: 1.2 + Math.random() * 3,
+                    vx: (Math.random() - 0.5) * 0.25, vy: -0.12 - Math.random() * 0.3,
+                    alpha: 0.12 + Math.random() * 0.2, drift: Math.random() * Math.PI * 2 });
+            }
+            function draw(t) {
+                requestAnimationFrame(draw); t *= 0.001; ctx.clearRect(0, 0, W, H);
+                mouseX += (tX - mouseX) * 0.03; mouseY += (tY - mouseY) * 0.03;
+                var mx = (mouseX - 0.5) * 30, my = (mouseY - 0.5) * 20;
+                for (var i = 0; i < threads.length; i++) {
+                    var th = threads[i]; ctx.beginPath(); ctx.strokeStyle = th.hue; ctx.globalAlpha = th.alpha; ctx.lineWidth = th.width;
+                    for (var x = -20; x <= W + 20; x += 8) {
+                        var progress = x / W, baseY = th.yBase * H;
+                        var wave1 = Math.sin(x * th.freq + t * th.speed + th.phase) * th.amp;
+                        var wave2 = Math.sin(x * th.freq * 1.8 + t * th.speed * 0.7 + th.phase + 2) * th.amp * 0.4;
+                        var mouseInfluence = Math.sin(progress * Math.PI) * my * 0.5;
+                        var y = baseY + wave1 + wave2 + mouseInfluence + mx * 0.15 * Math.sin(progress * Math.PI * 2 + th.phase);
+                        if (x === -20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                for (var k = 0; k < particles.length; k++) {
+                    var p = particles[k];
+                    p.x += p.vx + Math.sin(t * 0.5 + p.drift) * 0.15 + mx * 0.003; p.y += p.vy + my * 0.002;
+                    if (p.y < -10) { p.y = H + 10; p.x = Math.random() * W; }
+                    if (p.x < -10) p.x = W + 10; if (p.x > W + 10) p.x = -10;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(181, 134, 30, ' + p.alpha + ')'; ctx.fill();
+                }
+            }
+            requestAnimationFrame(draw);
+        })();
+    </script>
+
+    <!-- ===== GOOGLE SHEETS INTEGRATION ===== -->
+    <script>
+        const SHEET_ID = '19xNH0TVdHvwFLFU2pwcpe6XqriAoAdZH_S2bGv0XvDc';
+        const SHEET_NAME = 'Sheet1';
+        const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
+
+        function convertDriveLink(url) {
+            if (!url) return '';
+            url = url.trim();
+            if (url.includes('raw.githubusercontent.com')) return url;
+            if (url.includes('github.com') && url.includes('/blob/')) {
+                return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+            }
+            if (url.startsWith('https://i.ibb.co') || url.match(/\.(jpg|jpeg|png|webp|gif)$/i)) return url;
+            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (match) return `https://lh3.googleusercontent.com/d/${match[1]}=w400`;
+            return url;
+        }
+
+        function handleImageError(img) {
+            img.style.display = "none";
+            if (img.parentElement) {
+                img.parentElement.style.background = "linear-gradient(135deg, rgba(166,124,46,0.06), rgba(166,124,46,0.02))";
+                img.parentElement.style.minHeight = "120px";
+                img.parentElement.style.display = "flex";
+                img.parentElement.style.alignItems = "center";
+                img.parentElement.style.justifyContent = "center";
+                img.parentElement.innerHTML = '<i class="fas fa-image" style="font-size:2rem;color:rgba(166,124,46,0.2);"></i>';
+            }
+        }
+
+        function filterCategory(item) {
+            const cat = item.category.toLowerCase();
+            return cat.includes('handloom');
+        }
+
+        function handleSheetResponse(json) {
+            try {
+                const rows = json.table.rows;
+                const firstCell = (rows[0]?.c?.[0]?.v || '').toString().toLowerCase();
+                const startIndex = (firstCell === 'home page' || firstCell === 'product name') ? 1 : 0;
+
+                const allData = rows.slice(startIndex).map(row => {
+                    const cells = row.c;
+                    return {
+                        name: cells[1]?.v || '',
+                        category: cells[2]?.v || '',
+                        description: cells[3]?.v || '',
+                        image: convertDriveLink(cells[4]?.v || '')
+                    };
+                }).filter(item => item.name);
+
+                const filtered = allData.filter(filterCategory);
+                renderProducts(filtered);
+            } catch (e) {
+                console.log('Parse error:', e);
+                renderProducts([]);
+            }
+        }
+
+        function fetchProducts() {
+            if (!window.google) window.google = {};
+            if (!window.google.visualization) window.google.visualization = {};
+            if (!window.google.visualization.Query) window.google.visualization.Query = {};
+            window.google.visualization.Query.setResponse = handleSheetResponse;
+
+            const script = document.createElement('script');
+            script.src = SHEET_URL;
+            script.onerror = function() {
+                console.log('Cannot reach Google Sheets.');
+                renderProducts([]);
+            };
+            document.body.appendChild(script);
+        }
+
+        function renderProducts(data) {
+            const grid = document.getElementById('productsGrid');
+
+            if (data.length === 0) {
+                grid.innerHTML = `
+                    <div class="products-empty">
+                        <i class="fas fa-box-open"></i>
+                        <p>No items currently available. Check back soon or contact us for availability.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = data.map((item, index) => {
+
+                const hasImage = item.image && item.image.trim() !== '';
+                const whatsappMsg = encodeURIComponent(`Hi, I'm interested in ${item.name}. Please share details.`);
+
+                return `
+                    <div class="product-card reveal" style="transition-delay: ${index * 0.1}s;">
+                        ${hasImage
+                            ? `<div class="product-card-image"><img src="${item.image}" alt="${item.name}" loading="lazy" referrerpolicy="no-referrer" onerror="handleImageError(this)"></div>`
+                            : `<div class="product-card-placeholder"><i class="fas fa-scroll"></i></div>`
+                        }
+                        <div class="product-card-body">
+                            <span class="stock-category">${item.category}</span>
+                            
+                            <h3>${item.name}</h3>
+                            <p>${item.description}</p>
+                            
+                            <a href="https://wa.me/919364110190?text=${whatsappMsg}" target="_blank" class="inquire-btn">
+                                <i class="fab fa-whatsapp"></i> Inquire on WhatsApp
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            grid.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchProducts);
+    </script>
+
+    <!-- ===== MAIN JS ===== -->
+    <script>
+        const navbar = document.getElementById('navbar');
+        const navToggle = document.getElementById('navToggle');
+        const navLinks = document.getElementById('navLinks');
+
+        navToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            const icon = navToggle.querySelector('i');
+            icon.classList.toggle('fa-bars');
+            icon.classList.toggle('fa-times');
+        });
+
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                const icon = navToggle.querySelector('i');
+                icon.classList.add('fa-bars');
+                icon.classList.remove('fa-times');
+            });
+        });
+
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 50) navbar.classList.add('scrolled');
+            else navbar.classList.add('scrolled'); // Always scrolled on category pages
+        });
+
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+    </script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "8b525f7b9ca44af9a12b887cd97b18c1"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
+</html>
